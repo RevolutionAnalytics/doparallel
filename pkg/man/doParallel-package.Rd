@@ -7,7 +7,7 @@ The doParallel Package
 }
 \description{
 The doParallel package provides a parallel backend for the foreach/\%dopar\%
-function using Simon Urbanek's multicore package.
+function using the \code{parallel} package of R 2.14.0 and later.
 }
 \details{
 Further information is available in the following help topics:

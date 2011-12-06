@@ -15,6 +15,7 @@
 #
 
 .options <- new.env(parent=emptyenv())
+.revoDoParCluster <- NULL
 
 # this explicitly registers a multicore parallel backend
 registerDoParallel <- function(cl, cores=NULL, ...) {
@@ -56,9 +57,12 @@ registerDoParallel <- function(cl, cores=NULL, ...) {
 	  } else {
 	    cl <- makeCluster(3)
 	  }
-	  setDoPar(doParallelSnow, cl, info)
+	  assign(".revoDoParCluster", cl, pos=".GlobalEnv")
+	  setDoPar(doParallelSNOW, cl, info)
 	} else {
-
+        if (!missing(cl) && is.numeric(cl)) {
+			cores <- cl
+		}
 		# register multicore backend
 		setDoPar(doParallelMC, cores, info) 
 	}
@@ -69,7 +73,7 @@ registerDoParallel <- function(cl, cores=NULL, ...) {
 
 # internal function that determines the number of workers to use
 workers <- function(data) {
-  if (class(data) == "cluster") {
+  if ("cluster" %in% class(data)) {
     length(data)
   } else {
     cores <- data
