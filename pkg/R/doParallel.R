@@ -242,6 +242,9 @@ workerInit <- function(expr, exportenv, packages) {
 }
 
 evalWrapper <- function(args) {
+  exportEnv <- .doSnowGlobals$exportenv
+  attach(exportEnv)
+  on.exit(detach(exportEnv))
   lapply(names(args), function(n) assign(n, args[[n]], pos=.doSnowGlobals$exportenv))
   tryCatch(eval(.doSnowGlobals$expr, envir=.doSnowGlobals$exportenv), error=function(e) e)
 }
