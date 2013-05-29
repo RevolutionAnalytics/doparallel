@@ -1,8 +1,8 @@
 Package: doParallel
 Type: Package
 Title: Foreach parallel adaptor for the parallel package
-Version: 1.0.1
-Author: Revolution Analytics
+Version: 1.0.2
+Author: Revolution Analytics, Steve Weston
 Maintainer: Revolution Analytics <packages@revolutionanalytics.com>
 Description: Provides a parallel backend for the %dopar% function using
         the parallel package.

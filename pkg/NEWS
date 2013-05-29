@@ -1,0 +1,8 @@
+NEWS/ChangeLog for doParallel
+-----------------------------
+
+1.0.2  2013-05-29
+    o  Efficiency improvements courtesy of Steve Weston
+
+1.0.1  2012-04-09
+    o  Updated to support RevoScaleR's rxExec function

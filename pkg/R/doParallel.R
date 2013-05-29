@@ -243,10 +243,37 @@ workerInit <- function(expr, exportenv, packages) {
 
 evalWrapper <- function(args) {
   exportEnv <- .doSnowGlobals$exportenv
-  attach(exportEnv)
-  on.exit(detach(exportEnv))
   lapply(names(args), function(n) assign(n, args[[n]], pos=.doSnowGlobals$exportenv))
   tryCatch(eval(.doSnowGlobals$expr, envir=.doSnowGlobals$exportenv), error=function(e) e)
+}
+
+# This function takes the place of workerInit and evalWrapper when
+# preschedule is enabled.  It is executed by the master via clusterApply
+# such that there is a single chunked task for each worker in the
+# cluster, rather than using clusterCall to initialize the workers and
+# clusterApplyLB to compute the tasks one-by-one.  This strategy can be
+# significantly more efficient when there are many small tasks, and is
+# very similar to the default behavior of mclapply.
+workerPreschedule <- function(largs, expr, exportenv, packages) {
+  parent.env(exportenv) <- globalenv()
+  task <- function(args) {
+    lapply(names(args), function(n) assign(n, args[[n]], pos=exportenv))
+    eval(expr, envir=exportenv)
+  }
+
+  tryCatch({
+    # load all necessary packages
+    for (p in packages)
+      library(p, character.only=TRUE)
+
+    # execute all of the tasks
+    lapply(largs, task)
+  },
+  error=function(e) {
+    # only one exception was thrown, but we don't know which one,
+    # so we'll return it for all of the tasks
+    lapply(seq_along(largs), function(i) e)
+  })
 }
 
 doParallelSNOW <- function(obj, expr, envir, data) {
@@ -256,7 +283,6 @@ doParallelSNOW <- function(obj, expr, envir, data) {
     stop('obj must be a foreach object')
 
   it <- iter(obj)
-  argsList <- as.list(it)
   accumulator <- makeAccum(it)
 
   # setup the parent environment by first attempting to create an environment
@@ -300,13 +326,25 @@ doParallelSNOW <- function(obj, expr, envir, data) {
     for (sym in export) {
       if (!exists(sym, envir, inherits=TRUE))
         stop(sprintf('unable to find variable "%s"', sym))
-      assign(sym, get(sym, envir, inherits=TRUE),
-             pos=exportenv, inherits=FALSE)
+      val <- get(sym, envir, inherits=TRUE)
+      if (is.function(val) &&
+          (identical(environment(val), .GlobalEnv) ||
+           identical(environment(val), envir))) {
+        # Changing this function's environment to exportenv allows it to
+        # access/execute any other functions defined in exportenv.  This
+        # has always been done for auto-exported functions, and not
+        # doing so for explicitly exported functions results in
+        # functions defined in exportenv that can't call each other.
+        environment(val) <- exportenv
+      }
+      assign(sym, val, pos=exportenv, inherits=FALSE)
     }
   }
 
   # send exports to workers
   c.expr <- comp(expr, env=envir, options=list(suppressUndefined=TRUE))
+
+  # send exports to workers
   r <- clusterCall(cl, workerInit, c.expr, exportenv, obj$packages)
   for (emsg in r) {
     if (!is.null(emsg))
@@ -314,6 +352,7 @@ doParallelSNOW <- function(obj, expr, envir, data) {
   }
 
   # execute the tasks
+  argsList <- as.list(it)
   results <- clusterApplyLB(cl, argsList, evalWrapper)
 
   # call the accumulator with all of the results
