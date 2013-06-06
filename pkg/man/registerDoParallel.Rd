@@ -18,17 +18,25 @@ registerDoParallel(cl, cores=NULL, \dots)
   by the \code{parallel} package.}
   \item{\dots}{Package options.  Currently, only the \code{nocompile} option
   is supported.  If \code{nocompile} is set to \code{TRUE}, compiler
-  support is disabled.}
+  support is disabled. If you are using \code{multicore}-like functionality, 
+  multicore options are supported. If you are using \code{snow}-like 
+  functionality, snow options are supported. }
 }
 \details{
-The \code{parallel} package from R 2.14.0 and later provides functions for parallel
-execution of R code on machines with multiple cores or processors or multiple computers.
-It is essentially a blend of the \code{snow} and \code{multicore} packages. By default,
-the \code{doParallel} package uses \code{snow}-like functionality on Windows systems and
-\code{multicore}-like functionality on Unix-like systems. The \code{snow}-like functionality
-should work fine on Unix-like systems, but the \code{multicore}-like functionality is
-limited to a single sequential worker on Windows systems.
+The \code{parallel} package from R 2.14.0 and later provides functions for 
+parallel execution of R code on machines with multiple cores or processors 
+or multiple computers.  It is essentially a blend of the \code{snow} and 
+\code{multicore} packages. By default, the \code{doParallel} package uses 
+\code{snow}-like functionality.  The \code{snow}-like functionality
+should work fine on Unix-like systems, but the \code{multicore}-like 
+functionality is limited to a single sequential worker on Windows systems.
 On workstations with multiple cores running Unix-like operating systems, 
 the system \code{fork} call is used to spawn copies of the current process. 
+
+The supported multicore options are \code{preschedule}, \code{set.seed},
+\code{silent}, and \code{cores}, which are analogous to the similarly named 
+arguments to \code{\link{mclapply}}. The supported snow option is 
+\code{preschedule}, which like its multicore analog can be used to chunk the 
+tasks so that each worker gets a prescheduled chunk of tasks.
 }
 \keyword{utilities}

@@ -20,6 +20,18 @@ ptime <- system.time({
 })[3]
 cat(sprintf('parallel foreach:                    %6.1f sec\n', ptime))
 
+ptime2 <- system.time({
+  snowopts <- list(preschedule=TRUE)
+  r <- foreach(icount(trials), .combine=cbind,
+               .export='junk', .options.snow=snowopts) %dopar% {
+    ind <- sample(100, 100, replace=TRUE)
+    result1 <- glm(x[ind,2]~x[ind,1], family=binomial(logit))
+    coefficients(result1)
+  }
+})[3]
+cat(sprintf('parallel foreach with prescheduling: %6.1f sec\n', ptime2))
+
+
 ptime3 <- system.time({
   chunks <- getDoParWorkers()
   r <- foreach(n=idiv(trials, chunks=chunks), .combine=cbind,

@@ -53,19 +53,19 @@ registerDoParallel <- function(cl, cores=NULL, ...) {
   if (missing(cl) || is.numeric(cl)) {
     if (.Platform$OS.type == "windows") {
 	  if (!missing(cl) && is.numeric(cl)) {
-		cl <- makeCluster(cl)
+            cl <- makeCluster(cl)
 	  } else {
 	    cl <- makeCluster(3)
 	  }
-	  assign(".revoDoParCluster", cl, pos=".GlobalEnv")
+	  assign(".revoDoParCluster", cl, pos=.options)
 	  setDoPar(doParallelSNOW, cl, info)
-	} else {
-        if (!missing(cl) && is.numeric(cl)) {
-			cores <- cl
-		}
-		# register multicore backend
-		setDoPar(doParallelMC, cores, info) 
-	}
+    } else {
+      if (!missing(cl) && is.numeric(cl)) {
+        cores <- cl
+      }
+      # register multicore backend
+      setDoPar(doParallelMC, cores, info) 
+    }
   } else {
     setDoPar(doParallelSNOW, cl, info)
   }
@@ -278,12 +278,34 @@ workerPreschedule <- function(largs, expr, exportenv, packages) {
 
 doParallelSNOW <- function(obj, expr, envir, data) {
   cl <- data
+  preschedule <- FALSE
 
   if (!inherits(obj, 'foreach'))
     stop('obj must be a foreach object')
 
   it <- iter(obj)
   accumulator <- makeAccum(it)
+
+  # check for snow-specific options
+  options <- obj$options$snow
+  if (!is.null(options)) {
+    nms <- names(options)
+    recog <- nms %in% c('preschedule')
+    if (any(!recog))
+      warning(sprintf('ignoring unrecognized snow option(s): %s',
+                      paste(nms[!recog], collapse=', ')), call.=FALSE)
+
+    if (!is.null(options$preschedule)) {
+      if (!is.logical(options$preschedule) ||
+          length(options$preschedule) != 1) {
+        warning('preschedule must be logical value', call.=FALSE)
+      } else {
+        if (obj$verbose)
+          cat(sprintf('bundling all tasks into %d chunks\n', length(cl)))
+        preschedule <- options$preschedule
+      }
+    }
+  }
 
   # setup the parent environment by first attempting to create an environment
   # that has '...' defined in it with the appropriate values
@@ -344,16 +366,25 @@ doParallelSNOW <- function(obj, expr, envir, data) {
   # send exports to workers
   c.expr <- comp(expr, env=envir, options=list(suppressUndefined=TRUE))
 
-  # send exports to workers
-  r <- clusterCall(cl, workerInit, c.expr, exportenv, obj$packages)
-  for (emsg in r) {
-    if (!is.null(emsg))
-      stop('worker initialization failed: ', emsg)
-  }
+  if (! preschedule) {
+    # send exports to workers
+    r <- clusterCall(cl, workerInit, c.expr, exportenv, obj$packages)
+    for (emsg in r) {
+      if (!is.null(emsg))
+        stop('worker initialization failed: ', emsg)
+    }
 
-  # execute the tasks
-  argsList <- as.list(it)
-  results <- clusterApplyLB(cl, argsList, evalWrapper)
+    # execute the tasks
+    argsList <- as.list(it)
+    results <- clusterApplyLB(cl, argsList, evalWrapper)
+  } else {
+    # convert argument iterator into a list of lists
+    argsList <- parallel:::splitList(as.list(it), length(cl))
+
+    # execute the tasks
+    results <- do.call(c, clusterApply(cl, argsList, workerPreschedule,
+                                       c.expr, exportenv, obj$packages))
+  }
 
   # call the accumulator with all of the results
   tryCatch(accumulator(results, seq(along=results)), error=function(e) {
