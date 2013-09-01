@@ -1,6 +1,12 @@
 NEWS/ChangeLog for doParallel
 -----------------------------
 
+1.0.4  2013-09-01
+    o  New attachExportEnv option for doParallelSNOW
+    o  New function stopImplicitCluster to stop the implicitly created 
+       socket cluster.
+    o  Updated inst/unitTests/runTestSuite.sh, bug report from Michael Cheng
+
 1.0.3  2013-06-06
     o  New preschedule option for doParallelSNOW, courtesy of Steve Weston
     o  Removed assignment into global environment to meet CRAN standards.

@@ -3,19 +3,19 @@
 LOGFILE=test.log
 
 R --vanilla --slave > ${LOGFILE} 2>&1 <<'EOF'
-library(doMC)
+library(doParallel)
 library(RUnit)
 
 verbose <- as.logical(Sys.getenv('FOREACH_VERBOSE', 'FALSE'))
 
-library(doMC)
-registerDoMC()
+library(doParallel)
+registerDoParallel()
 
 options(warn=1)
 options(showWarnCalls=TRUE)
 
 cat('Starting test at', date(), '\n')
-cat(sprintf('doMC version: %s\n', getDoParVersion()))
+cat(sprintf('doParallel version: %s\n', getDoParVersion()))
 cat(sprintf('Running with %d worker(s)\n', getDoParWorkers()))
 
 tests <- c('options.R')
@@ -39,6 +39,8 @@ if (length(errcase) == 0) {
     print(t)
   }
 }
+
+stopImplicitCluster()
 
 cat('Finished test at', date(), '\n')
 EOF

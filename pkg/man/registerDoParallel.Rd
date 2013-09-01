@@ -1,5 +1,6 @@
 \name{registerDoParallel}
 \alias{registerDoParallel}
+\alias{stopImplicitCluster}
 \title{registerDoParallel}
 \description{
 The \code{registerDoParallel} function is used to register the 
@@ -7,6 +8,7 @@ parallel backend with the \code{foreach} package.
 }
 \usage{
 registerDoParallel(cl, cores=NULL, \dots)
+stopImplicitCluster()
 }
 \arguments{
   \item{cl}{A cluster object as returned by \code{makeCluster}, or the number
@@ -18,9 +20,7 @@ registerDoParallel(cl, cores=NULL, \dots)
   by the \code{parallel} package.}
   \item{\dots}{Package options.  Currently, only the \code{nocompile} option
   is supported.  If \code{nocompile} is set to \code{TRUE}, compiler
-  support is disabled. If you are using \code{multicore}-like functionality, 
-  multicore options are supported. If you are using \code{snow}-like 
-  functionality, snow options are supported. }
+  support is disabled.}
 }
 \details{
 The \code{parallel} package from R 2.14.0 and later provides functions for 
@@ -33,10 +33,20 @@ functionality is limited to a single sequential worker on Windows systems.
 On workstations with multiple cores running Unix-like operating systems, 
 the system \code{fork} call is used to spawn copies of the current process. 
 
+The \code{doParallel} backend supports both multicore and snow options passed
+through the \code{foreach} function. 
 The supported multicore options are \code{preschedule}, \code{set.seed},
 \code{silent}, and \code{cores}, which are analogous to the similarly named 
-arguments to \code{\link{mclapply}}. The supported snow option is 
+arguments to \code{\link{mclapply}}, and are passed using the
+\code{.options.multicore} argument to \code{foreach}. The supported snow options are 
 \code{preschedule}, which like its multicore analog can be used to chunk the 
-tasks so that each worker gets a prescheduled chunk of tasks.
+tasks so that each worker gets a prescheduled chunk of tasks, and 
+\code{attachExportEnv}, which can be used to attach the export environment
+in certain cases where R's lexical scoping is unable to find a needed
+export. The snow options are passed to \code{foreach} using the \code{.options.snow}
+argument.
+
+The function \code{stopImplicitCluster} can be used in vignettes and other places
+where it is important to explicitly close the implicitly created cluster.
 }
 \keyword{utilities}

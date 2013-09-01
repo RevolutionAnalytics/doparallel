@@ -71,6 +71,14 @@ registerDoParallel <- function(cl, cores=NULL, ...) {
   }
 }
 
+"stopImplicitCluster" <- function()
+{
+    if (exists(".revoDoParCluster", where=.options) && !is.null(.revoDoParCluster)) {
+        stopCluster(.revoDoParCluster)
+        remove(".revoDoParCluster", where=.options)
+    }
+}
+
 # internal function that determines the number of workers to use
 workers <- function(data) {
   if ("cluster" %in% class(data)) {
@@ -224,11 +232,15 @@ makeDotsEnv <- function(...) {
 
 .doSnowGlobals <- new.env(parent=emptyenv())
 
-workerInit <- function(expr, exportenv, packages) {
+workerInit <- function(expr, exportenv, packages, attach=FALSE) {
   assign('expr', expr, .doSnowGlobals)
   assign('exportenv', exportenv, .doSnowGlobals)
-  parent.env(.doSnowGlobals$exportenv) <- globalenv()
-
+  exportEnv <- .doSnowGlobals$exportenv
+  parent.env(exportEnv) <- globalenv()
+  if (attach) {
+	attach(exportEnv)
+  }
+  
   tryCatch({
     for (p in packages)
       library(p, character.only=TRUE)
@@ -240,9 +252,13 @@ workerInit <- function(expr, exportenv, packages) {
     conditionMessage(e)
   })
 }
+workerCleanup <- function() {
+	if ("exportEnv" %in% search()) {
+		detach(exportEnv)
+	}
+}
 
 evalWrapper <- function(args) {
-  exportEnv <- .doSnowGlobals$exportenv
   lapply(names(args), function(n) assign(n, args[[n]], pos=.doSnowGlobals$exportenv))
   tryCatch(eval(.doSnowGlobals$expr, envir=.doSnowGlobals$exportenv), error=function(e) e)
 }
@@ -279,6 +295,7 @@ workerPreschedule <- function(largs, expr, exportenv, packages) {
 doParallelSNOW <- function(obj, expr, envir, data) {
   cl <- data
   preschedule <- FALSE
+  attachExportEnv <- FALSE
 
   if (!inherits(obj, 'foreach'))
     stop('obj must be a foreach object')
@@ -290,7 +307,7 @@ doParallelSNOW <- function(obj, expr, envir, data) {
   options <- obj$options$snow
   if (!is.null(options)) {
     nms <- names(options)
-    recog <- nms %in% c('preschedule')
+    recog <- nms %in% c('preschedule', 'attachExportEnv')
     if (any(!recog))
       warning(sprintf('ignoring unrecognized snow option(s): %s',
                       paste(nms[!recog], collapse=', ')), call.=FALSE)
@@ -303,6 +320,16 @@ doParallelSNOW <- function(obj, expr, envir, data) {
         if (obj$verbose)
           cat(sprintf('bundling all tasks into %d chunks\n', length(cl)))
         preschedule <- options$preschedule
+      }
+    }
+    if (!is.null(options$attachExportEnv)) {
+      if (!is.logical(options$attachExportEnv) ||
+          length(options$attachExportEnv) != 1) {
+        warning('attachExportEnv must be logical value', call.=FALSE)
+      } else {
+        if (obj$verbose)
+          cat("attaching export environment\n")
+        attachExportEnv <- options$attachExportEnv
       }
     }
   }
@@ -368,7 +395,7 @@ doParallelSNOW <- function(obj, expr, envir, data) {
 
   if (! preschedule) {
     # send exports to workers
-    r <- clusterCall(cl, workerInit, c.expr, exportenv, obj$packages)
+    r <- clusterCall(cl, workerInit, c.expr, exportenv, obj$packages, attachExportEnv)
     for (emsg in r) {
       if (!is.null(emsg))
         stop('worker initialization failed: ', emsg)
@@ -377,6 +404,11 @@ doParallelSNOW <- function(obj, expr, envir, data) {
     # execute the tasks
     argsList <- as.list(it)
     results <- clusterApplyLB(cl, argsList, evalWrapper)
+	
+	# clean up the workers
+	if (attachExportEnv){
+	  clusterCall(cl, workerCleanup)
+	}
   } else {
     # convert argument iterator into a list of lists
     argsList <- parallel:::splitList(as.list(it), length(cl))
@@ -385,6 +417,7 @@ doParallelSNOW <- function(obj, expr, envir, data) {
     results <- do.call(c, clusterApply(cl, argsList, workerPreschedule,
                                        c.expr, exportenv, obj$packages))
   }
+
 
   # call the accumulator with all of the results
   tryCatch(accumulator(results, seq(along=results)), error=function(e) {
