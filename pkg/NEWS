@@ -1,6 +1,9 @@
 NEWS/ChangeLog for doParallel
 -----------------------------
-
+1.0.5  2013-10-25
+    o  Changed foreach, iterators, and parallel from Depends to
+	   Imports (request of Steve Weston and Stefan Schlager)
+	   
 1.0.4  2013-09-01
     o  New attachExportEnv option for doParallelSNOW
     o  New function stopImplicitCluster to stop the implicitly created 
