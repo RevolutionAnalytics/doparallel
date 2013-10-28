@@ -6,7 +6,6 @@ Author: Revolution Analytics, Steve Weston
 Maintainer: Revolution Analytics <packages@revolutionanalytics.com>
 Description: Provides a parallel backend for the %dopar% function using
         the parallel package.
-Depends: R (>= 2.14.0), utils
-Imports: foreach(>= 1.2.0), iterators(>= 1.0.0), parallel
+Depends: R (>= 2.14.0), foreach(>= 1.2.0), iterators(>= 1.0.0), parallel, utils 
 Enhances: compiler, RUnit
 License: GPL-2
