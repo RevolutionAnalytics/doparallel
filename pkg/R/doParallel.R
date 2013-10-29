@@ -125,6 +125,16 @@ comp <- if (getRversion() < "2.13.0") {
   }
 }
 
+parSpl <- try(parallel::splitList, silent=TRUE)
+## Use the "splitList" function from parallel if it's exported
+## Otherwise, use the definition it had in R 3.0.2.
+"splitList" <- if (inherits(parSpl, "try-error")) {
+    function (x, ncl) 
+	lapply(splitIndices(length(x), ncl), function(i) x[i])
+} else {
+	parSpl
+}
+
 doParallelMC <- function(obj, expr, envir, data) {
   # set the default mclapply options
   preschedule <- TRUE
@@ -411,7 +421,7 @@ doParallelSNOW <- function(obj, expr, envir, data) {
 	}
   } else {
     # convert argument iterator into a list of lists
-    argsList <- parallel:::splitList(as.list(it), length(cl))
+    argsList <- splitList(as.list(it), length(cl))
 
     # execute the tasks
     results <- do.call(c, clusterApply(cl, argsList, workerPreschedule,
