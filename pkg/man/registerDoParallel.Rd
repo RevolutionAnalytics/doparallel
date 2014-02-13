@@ -49,4 +49,11 @@ argument.
 The function \code{stopImplicitCluster} can be used in vignettes and other places
 where it is important to explicitly close the implicitly created cluster.
 }
+\examples{
+cl <- makePSOCKcluster(2)
+registerDoParallel(cl)
+m <- matrix(rnorm(9), 3, 3)
+foreach(i=1:nrow(m), .combine=rbind) %dopar%  (m[i,] / mean(m[i,]))
+stopCluster(cl)
+}
 \keyword{utilities}

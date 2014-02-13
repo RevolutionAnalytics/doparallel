@@ -1,6 +1,12 @@
 NEWS/ChangeLog for doParallel
 -----------------------------
-1.0.5  2013-10-25
+
+1.0.7  2014-02-01
+    o  Modified to work better when a foreach loop is executed 
+       in a package (courtesy of Steve Weston)
+    o  Added unit tests and a minimal working example
+
+1.0.6  2013-10-25
     o  Changed foreach, iterators, and parallel from Depends to
 	   Imports (request of Steve Weston and Stefan Schlager)
 	   

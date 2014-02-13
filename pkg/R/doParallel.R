@@ -55,19 +55,23 @@ registerDoParallel <- function(cl, cores=NULL, ...) {
 	  if (!missing(cl) && is.numeric(cl)) {
             cl <- makeCluster(cl)
 	  } else {
-	    cl <- makeCluster(3)
+        if (!missing(cores) && is.numeric(cores)){
+            cl <- makeCluster(cores)
+        } else {
+            cl <- makeCluster(3)
+        }
 	  }
 	  assign(".revoDoParCluster", cl, pos=.options)
-	  setDoPar(doParallelSNOW, cl, info)
+	  setDoPar(doParallelSNOW, cl, snowinfo)
     } else {
       if (!missing(cl) && is.numeric(cl)) {
         cores <- cl
       }
       # register multicore backend
-      setDoPar(doParallelMC, cores, info) 
+      setDoPar(doParallelMC, cores, mcinfo) 
     }
   } else {
-    setDoPar(doParallelSNOW, cl, info)
+    setDoPar(doParallelSNOW, cl, snowinfo)
   }
 }
 
@@ -105,11 +109,20 @@ workers <- function(data) {
   }
 }
 
-# passed to setDoPar via registerDoMC, and called by getDoParWorkers, etc
-info <- function(data, item) {
+# passed to setDoPar via registerDoParallel, and called by getDoParWorkers, etc
+mcinfo <- function(data, item) {
   switch(item,
          workers=workers(data),
-         name='doParallel',
+         name='doParallelMC',
+         version=packageDescription('doParallel', fields='Version'),
+         NULL)
+}
+
+# passed to setDoPar via registerDoParallel, and called by getDoParWorkers, etc
+snowinfo <- function(data, item) {
+  switch(item,
+         workers=workers(data),
+         name='doParallelSNOW',
          version=packageDescription('doParallel', fields='Version'),
          NULL)
 }
@@ -124,6 +137,7 @@ comp <- if (getRversion() < "2.13.0") {
       compiler::compile(expr, ...)
   }
 }
+
 
 parSpl <- try(parallel::splitList, silent=TRUE)
 ## Use the "splitList" function from parallel if it's exported
@@ -242,13 +256,53 @@ makeDotsEnv <- function(...) {
 
 .doSnowGlobals <- new.env(parent=emptyenv())
 
-workerInit <- function(expr, exportenv, packages, attach=FALSE) {
+getparentenv <- function(pkgname) {
+  parenv <- NULL
+
+  # if anything goes wrong, print the error object and return
+  # the global environment
+  tryCatch({
+    # pkgname is NULL in many cases, as when the foreach loop
+    # is executed interactively or in an R script
+    if (is.character(pkgname)) {
+      # load the specified package
+      if (require(pkgname, character.only=TRUE)) {
+        # search for any function in the package
+        pkgenv <- as.environment(paste0('package:', pkgname))
+        for (sym in ls(pkgenv)) {
+          fun <- get(sym, pkgenv, inherits=FALSE)
+          if (is.function(fun)) {
+            env <- environment(fun)
+            if (is.environment(env)) {
+              parenv <- env
+              break
+            }
+          }
+        }
+        if (is.null(parenv)) {
+          stop('loaded ', pkgname, ', but parent search failed', call.=FALSE)
+        } else {
+          message('loaded ', pkgname, ' and set parent environment')
+        }
+      }
+    }
+  },
+  error=function(e) {
+    cat(sprintf('Error getting parent environment: %s\n',
+                conditionMessage(e)))
+  })
+
+  # return the global environment by default
+  if (is.null(parenv)) globalenv() else parenv
+}
+
+workerInit <- function(expr, exportenv, pkgname, packages, attach=FALSE) {
   assign('expr', expr, .doSnowGlobals)
   assign('exportenv', exportenv, .doSnowGlobals)
   exportEnv <- .doSnowGlobals$exportenv
-  parent.env(exportEnv) <- globalenv()
+  parent.env(exportEnv) <- getparentenv(pkgname)
   if (attach) {
-	attach(exportEnv)
+    attach(exportEnv)
   }
   
   tryCatch({
@@ -280,8 +334,8 @@ evalWrapper <- function(args) {
 # clusterApplyLB to compute the tasks one-by-one.  This strategy can be
 # significantly more efficient when there are many small tasks, and is
 # very similar to the default behavior of mclapply.
-workerPreschedule <- function(largs, expr, exportenv, packages) {
-  parent.env(exportenv) <- globalenv()
+workerPreschedule <- function(largs, expr, exportenv, pkgname, packages) {
+  parent.env(exportenv) <- getparentenv(pkgname)
   task <- function(args) {
     lapply(names(args), function(n) assign(n, args[[n]], pos=exportenv))
     eval(expr, envir=exportenv)
@@ -402,10 +456,17 @@ doParallelSNOW <- function(obj, expr, envir, data) {
 
   # send exports to workers
   c.expr <- comp(expr, env=envir, options=list(suppressUndefined=TRUE))
+  
+   # packageName function added in R 3.0.0
+   pkgname <- if (exists('packageName', mode='function'))
+     packageName(envir)
+   else
+     NULL
 
   if (! preschedule) {
     # send exports to workers
-    r <- clusterCall(cl, workerInit, c.expr, exportenv, obj$packages, attachExportEnv)
+    r <- clusterCall(cl, workerInit, c.expr, exportenv, pkgname, 
+                     obj$packages, attachExportEnv)
     for (emsg in r) {
       if (!is.null(emsg))
         stop('worker initialization failed: ', emsg)
@@ -425,7 +486,8 @@ doParallelSNOW <- function(obj, expr, envir, data) {
 
     # execute the tasks
     results <- do.call(c, clusterApply(cl, argsList, workerPreschedule,
-                                       c.expr, exportenv, obj$packages))
+                                       c.expr, exportenv, pkgname, 
+                                       obj$packages))
   }
 
 
