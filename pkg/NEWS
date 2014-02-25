@@ -1,6 +1,9 @@
 NEWS/ChangeLog for doParallel
 -----------------------------
 
+1.0.8  2014-02-25
+    o  Modified vignette to use no more than two workers.
+    
 1.0.7  2014-02-01
     o  Modified to work better when a foreach loop is executed 
        in a package (courtesy of Steve Weston)
