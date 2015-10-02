@@ -62,6 +62,9 @@ registerDoParallel <- function(cl, cores=NULL, ...) {
         }
 	  }
 	  assign(".revoDoParCluster", cl, pos=.options)
+	  reg.finalizer(.options, function(e){
+	      stopImplicitCluster()
+		}, onexit = TRUE)
 	  setDoPar(doParallelSNOW, cl, snowinfo)
     } else {
       if (!missing(cl) && is.numeric(cl)) {
@@ -77,9 +80,9 @@ registerDoParallel <- function(cl, cores=NULL, ...) {
 
 "stopImplicitCluster" <- function()
 {
-    if (exists(".revoDoParCluster", where=.options) && !is.null(.revoDoParCluster)) {
-        stopCluster(.revoDoParCluster)
-        remove(".revoDoParCluster", where=.options)
+    if (exists(".revoDoParCluster", where=.options) && !is.null(.options[['.revoDoParCluster']])) {
+        stopCluster(.options[['.revoDoParCluster']])
+        remove(".revoDoParCluster", envir=.options)
     }
 }
 
