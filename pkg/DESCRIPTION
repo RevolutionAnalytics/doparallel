@@ -9,6 +9,6 @@ Authors@R: c(person("Rich", "Calaway", role="cre", email="richcala@microsoft.com
 Description: Provides a parallel backend for the %dopar% function using
         the parallel package.
 Depends: R (>= 2.14.0), foreach(>= 1.2.0), iterators(>= 1.0.0), parallel, utils 
-Suggests: caret, mlbench, rpart
-Enhances: compiler, RUnit
+Suggests: caret, mlbench, rpart, RUnit
+Enhances: compiler
 License: GPL-2
