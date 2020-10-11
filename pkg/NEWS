@@ -1,6 +1,12 @@
 NEWS/ChangeLog for doParallel
 -----------------------------
 
+1.0.16 2020-10-12
+    o  Maintainer change (Michelle Wallig; Michelle.Wallig@microsoft.com).
+
+1.0.15 2019-08-02
+    o  Maintainer change (Hong Ooi; hongooi@microsoft.com).
+
 1.0.14 2018-09-24
     o  Re-enabled tests. 
 	o  Moved RUnit from Enhances to Suggests (request of Kurt Hornik)
