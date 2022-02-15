@@ -1,8 +1,8 @@
 Package: doParallel
 Type: Package
 Title: Foreach Parallel Adaptor for the 'parallel' Package
-Version: 1.0.16
-Authors@R: c(person("Michelle", "Wallig", role="cre", email="Michelle.Wallig@microsoft.com"),
+Version: 1.0.17
+Authors@R: c(person("Folashade", "Daniel", role="cre", email="fdaniel@microsoft.com"),
              person("Microsoft", "Corporation", role=c("aut", "cph")),
              person("Steve", "Weston", role="aut"),
              person("Dan", "Tenenbaum", role="ctb"))

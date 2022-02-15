@@ -1,6 +1,9 @@
 NEWS/ChangeLog for doParallel
 -----------------------------
 
+1.0.17 2022-01-10
+    o  Maintainer change (Folashade Daniel; fdaniel@microsoft.com).
+
 1.0.16 2020-10-12
     o  Maintainer change (Michelle Wallig; Michelle.Wallig@microsoft.com).
 
